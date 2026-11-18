@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111418">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Πρόοδος">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Πρόοδος</title>
+<style>
+  :root {
+    --bg: #111418; --card: #1b2027; --line: #2a313b; --text: #e8ecf1;
+    --muted: #8b95a3; --accent: #4f9cf9; --ok: #3ecf8e; --danger: #f2555a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom)); }
+  header { padding: 16px 16px 4px; }
+  header h1 { margin: 0; font-size: 22px; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  main { padding: 8px 12px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; margin-bottom: 12px; }
+  .card h2 { margin: 0 0 10px; font-size: 16px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 4px; }
+  /* 16px font: αποτρέπει το auto-zoom του iPhone στα inputs */
+  input, textarea, select { width: 100%; font-size: 16px; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  textarea { min-height: 70px; resize: vertical; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+  button { font-size: 16px; border: 0; border-radius: 10px; padding: 14px; width: 100%;
+    background: var(--accent); color: #fff; font-weight: 600; margin-top: 12px; }
+  button.secondary { background: var(--line); color: var(--text); }
+  button.danger { background: var(--danger); }
+  button.small { width: auto; padding: 6px 10px; margin: 0; font-size: 13px; background: transparent;
+    color: var(--muted); border: 1px solid var(--line); }
+  ul.list { list-style: none; padding: 0; margin: 0; }
+  ul.list li { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  ul.list li:last-child { border-bottom: 0; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+  .stats { display: flex; gap: 8px; margin-bottom: 10px; }
+  .stat { flex: 1; background: var(--bg); border-radius: 10px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { font-size: 11px; color: var(--muted); }
+  canvas { width: 100%; height: 200px; display: block; }
+  .goal { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .goal input { width: 22px; height: 22px; padding: 0; flex: none; }
+  .goal.done span { text-decoration: line-through; color: var(--muted); }
+  .log-entry { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .log-entry:last-child { border-bottom: 0; }
+  .log-entry p { margin: 4px 0; white-space: pre-wrap; }
+  .log-entry b { color: var(--muted); font-weight: 600; }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: var(--card);
+    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; margin: 0; border-radius: 0; background: transparent; color: var(--muted);
+    padding: 10px 0 12px; font-size: 12px; font-weight: 500; }
+  nav button .ic { display: block; font-size: 22px; margin-bottom: 2px; }
+  nav button.active { color: var(--accent); }
+  .toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom));
+    transform: translateX(-50%); background: var(--ok); color: #06210f; padding: 10px 16px;
+    border-radius: 999px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s;
+    pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="title">Γυμναστήριο</h1>
+  <p id="subtitle"></p>
+</header>
+
+<main>
+  <!-- ================= ΓΥΜΝΑΣΤΗΡΙΟ ================= -->
+  <section class="view active" id="view-gym">
+    <div class="card">
+      <h2>Νέο σετ</h2>
+      <label for="g-ex">Άσκηση</label>
+      <input id="g-ex" list="ex-list" placeholder="π.χ. Πάγκος" autocomplete="off">
+      <datalist id="ex-list"></datalist>
+      <div class="row">
+        <div><label for="g-kg">Κιλά</label><input id="g-kg" type="number" inputmode="decimal" step="0.5"></div>
+        <div><label for="g-reps">Επαναλ.</label><input id="g-reps" type="number" inputmode="numeric"></div>
+        <div><label for="g-sets">Σετ</label><input id="g-sets" type="number" inputmode="numeric" value="1"></div>
+      </div>
+      <label for="g-date">Ημερομηνία</label>
+      <input id="g-date" type="date">
+      <button id="g-add">Αποθήκευση</button>
+    </div>
+
+    <div class="card">
+      <h2>Σημερινή προπόνηση</h2>
+      <ul class="list" id="g-today"></ul>
+    </div>
+  </section>
+
+  <!-- ================= ΠΡΟΟΔΟΣ ================= -->
+  <section class="view" id="view-progress">
+    <div class="card">
+      <label for="p-ex">Άσκηση</label>
+      <select id="p-ex"></select>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><b id="p-best">–</b><span>Ρεκόρ (kg)</span></div>
+        <div class="stat"><b id="p-e1rm">–</b><span>Εκτ. 1RM</span></div>
+        <div class="stat"><b id="p-count">–</b><span>Προπονήσεις</span></div>
+      </div>
+      <canvas id="p-chart"></canvas>
+      <p class="meta">Μέγιστα κιλά ανά ημέρα</p>
+    </div>
+    <div class="card">
+      <h2>Ιστορικό</h2>
+      <ul class="list" id="p-history"></ul>
+    </div>
+  </section>
+
+  <!-- ================= ΔΟΥΛΕΙΑ ================= -->
+  <section class="view" id="view-work">
+    <div class="card">
+      <h2>Στόχοι</h2>
+      <div class="row">
+        <input id="w-goal" placeholder="π.χ. Τέλος πιστοποίησης">
+        <button id="w-goal-add" style="flex:none;width:auto;margin-top:0">+</button>
+      </div>
+      <ul class="list" id="w-goals" style="margin-top:8px"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Ημερολόγιο ημέρας</h2>
+      <label for="w-date">Ημερομηνία</label>
+      <input id="w-date" type="date">
+      <label for="w-done">Τι έκανα</label>
+      <textarea id="w-done"></textarea>
+      <label for="w-learned">Τι έμαθα</label>
+      <textarea id="w-learned"></textarea>
+      <label for="w-blockers">Τι με μπλόκαρε</label>
+      <textarea id="w-blockers"></textarea>
+      <button id="w-add">Αποθήκευση</button>
+    </div>
+
+    <div class="card">
+      <h2>Πρόσφατες καταχωρήσεις</h2>
+      <div id="w-logs"></div>
+    </div>
+  </section>
+
+  <!-- ================= ΡΥΘΜΙΣΕΙΣ ================= -->
+  <section class="view" id="view-settings">
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="meta">Τα δεδομένα ζουν μόνο στο κινητό σου. Κάνε export τακτικά (π.χ. κάθε εβδομάδα) και κράτα το αρχείο σε Drive/email.</p>
+      <button id="s-export">Export (JSON)</button>
+      <button id="s-import" class="secondary">Import από αρχείο</button>
+      <input id="s-file" type="file" accept="application/json,.json" hidden>
+    </div>
+    <div class="card">
+      <h2>Κατάσταση</h2>
+      <p class="meta" id="s-status"></p>
+      <button id="s-reset" class="danger">Διαγραφή όλων</button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-view="gym" class="active"><span class="ic">🏋️</span>Γυμναστ.</button>
+  <button data-view="progress"><span class="ic">📈</span>Πρόοδος</button>
+  <button data-view="work"><span class="ic">💼</span>Δουλειά</button>
+  <button data-view="settings"><span class="ic">⚙️</span>Ρυθμίσεις</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== ΑΠΟΘΗΚΕΥΣΗ ===================== */
+const KEY = 'progress-app-v1';
+const empty = () => ({ version: 1, gym: [], goals: [], logs: [] });
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? Object.assign(empty(), JSON.parse(raw)) : empty();
+  } catch (e) { return empty(); }
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch (e) { toast('Σφάλμα αποθήκευσης!', true); }
+}
+let db = load();
+
+// Ζητάει από τον browser να μη σβήσει τα δεδομένα όταν πιέζεται ο χώρος
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+
+/* ===================== ΒΟΗΘΗΤΙΚΑ ===================== */
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const today = () => {
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
+const fmtDate = s => new Date(s + 'T00:00').toLocaleDateString('el-GR', { day: 'numeric', month: 'short', year: 'numeric' });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+// Epley: εκτίμηση μέγιστης μίας επανάληψης
+const e1rm = (kg, reps) => reps <= 1 ? kg : kg * (1 + reps / 30);
+
+function toast(msg, bad) {
+  const t = $('toast'); t.textContent = msg;
+  t.style.background = bad ? 'var(--danger)' : 'var(--ok)';
+  t.classList.add('show'); clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 1600);
+}
+const exercises = () => [...new Set(db.gym.map(g => g.ex))].sort((a, b) => a.localeCompare(b, 'el'));
+
+/* ===================== ΠΛΟΗΓΗΣΗ ===================== */
+const TITLES = { gym: 'Γυμναστήριο', progress: 'Πρόοδος', work: 'Δουλειά', settings: 'Ρυθμίσεις' };
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+function show(v) {
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  $('title').textContent = TITLES[v];
+  if (v === 'progress') renderProgress();
+  if (v === 'settings') renderStatus();
+  window.scrollTo(0, 0);
+}
+
+/* ===================== ΓΥΜΝΑΣΤΗΡΙΟ ===================== */
+$('g-date').value = today();
+$('g-add').addEventListener('click', () => {
+  const ex = $('g-ex').value.trim();
+  const kg = parseFloat($('g-kg').value);
+  const reps = parseInt($('g-reps').value, 10);
+  const sets = parseInt($('g-sets').value, 10) || 1;
+  if (!ex || isNaN(kg) || isNaN(reps)) return toast('Συμπλήρωσε άσκηση, κιλά, επαναλήψεις', true);
+  db.gym.push({ id: uid(), date: $('g-date').value || today(), ex, kg, reps, sets });
+  save(); renderGym(); toast('Αποθηκεύτηκε ✓');
+  // Κρατάμε άσκηση/κιλά για το επόμενο σετ — συνήθως ίδια
+});
+
+// Όταν διαλέγεις άσκηση, προσυμπληρώνει τα τελευταία κιλά/επαναλήψεις
+$('g-ex').addEventListener('change', () => {
+  const last = [...db.gym].reverse().find(g => g.ex === $('g-ex').value.trim());
+  if (last) { $('g-kg').value = last.kg; $('g-reps').value = last.reps; }
+});
+
+function renderGym() {
+  $('ex-list').innerHTML = exercises().map(e => `<option value="${esc(e)}">`).join('');
+  const d = $('g-date').value || today();
+  const items = db.gym.filter(g => g.date === d);
+  $('g-today').innerHTML = items.length ? items.map(g => `
+    <li><div><div>${esc(g.ex)}</div><div class="meta">${g.sets} × ${g.reps} @ ${g.kg} kg</div></div>
+    <button class="small" data-del-gym="${g.id}">✕</button></li>`).join('')
+    : '<li class="empty">Τίποτα ακόμα για αυτή τη μέρα.</li>';
+  $('subtitle').textContent = `${new Set(db.gym.map(g => g.date)).size} προπονήσεις συνολικά`;
+}
+$('g-date').addEventListener('change', renderGym);
+$('g-today').addEventListener('click', e => {
+  const id = e.target.dataset.delGym; if (!id) return;
+  db.gym = db.gym.filter(g => g.id !== id); save(); renderGym();
+});
+
+/* ===================== ΠΡΟΟΔΟΣ ===================== */
+function renderProgress() {
+  const list = exercises(), sel = $('p-ex'), prev = sel.value;
+  sel.innerHTML = list.length ? list.map(e => `<option>${esc(e)}</option>`).join('') : '<option value="">— καμία άσκηση —</option>';
+  if (list.includes(prev)) sel.value = prev;
+  const ex = sel.value;
+  const items = db.gym.filter(g => g.ex === ex).sort((a, b) => a.date.localeCompare(b.date));
+
+  // Μέγιστα κιλά ανά ημέρα
+  const byDay = {};
+  items.forEach(g => { byDay[g.date] = Math.max(byDay[g.date] || 0, g.kg); });
+  const days = Object.keys(byDay).sort();
+
+  $('p-best').textContent = items.length ? Math.max(...items.map(g => g.kg)) : '–';
+  $('p-e1rm').textContent = items.length ? Math.round(Math.max(...items.map(g => e1rm(g.kg, g.reps)))) : '–';
+  $('p-count').textContent = days.length || '–';
+
+  drawChart(days, days.map(d => byDay[d]));
+
+  $('p-history').innerHTML = items.length ? [...items].reverse().slice(0, 50).map(g => `
+    <li><div>${g.sets} × ${g.reps} @ ${g.kg} kg</div><div class="meta">${fmtDate(g.date)}</div></li>`).join('')
+    : '<li class="empty">Δεν υπάρχουν δεδομένα.</li>';
+}
+$('p-ex').addEventListener('change', renderProgress);
+
+function drawChart(labels, values) {
+  const c = $('p-chart'), dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr;
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement);
+  const muted = css.getPropertyValue('--muted'), line = css.getPropertyValue('--line'), acc = css.getPropertyValue('--accent');
+  ctx.font = '11px sans-serif'; ctx.fillStyle = muted;
+
+  if (values.length < 2) { ctx.fillText('Χρειάζονται τουλάχιστον 2 προπονήσεις', 8, h / 2); return; }
+
+  const pad = { l: 34, r: 10, t: 10, b: 22 };
+  let min = Math.min(...values), max = Math.max(...values);
+  if (min === max) { min -= 5; max += 5; }
+  const range = max - min; min -= range * 0.1; max += range * 0.1;
+  const x = i => pad.l + (i / (values.length - 1)) * (w - pad.l - pad.r);
+  const y = v => pad.t + (1 - (v - min) / (max - min)) * (h - pad.t - pad.b);
+
+  // Οριζόντιες γραμμές
+  ctx.strokeStyle = line; ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const v = min + (i / 3) * (max - min), yy = y(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke();
+    ctx.fillText(Math.round(v), 4, yy + 4);
+  }
+  // Ετικέτες ημερομηνιών (πρώτη, τελευταία)
+  const short = s => s.slice(8, 10) + '/' + s.slice(5, 7);
+  ctx.fillText(short(labels[0]), pad.l, h - 6);
+  const lastLbl = short(labels[labels.length - 1]);
+  ctx.fillText(lastLbl, w - pad.r - ctx.measureText(lastLbl).width, h - 6);
+
+  // Γραμμή
+  ctx.strokeStyle = acc; ctx.lineWidth = 2; ctx.beginPath();
+  values.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+  ctx.stroke();
+  ctx.fillStyle = acc;
+  values.forEach((v, i) => { ctx.beginPath(); ctx.arc(x(i), y(v), 3, 0, Math.PI * 2); ctx.fill(); });
+}
+
+/* ===================== ΔΟΥΛΕΙΑ ===================== */
+$('w-date').value = today();
+$('w-goal-add').addEventListener('click', () => {
+  const t = $('w-goal').value.trim(); if (!t) return;
+  db.goals.push({ id: uid(), text: t, done: false, created: today() });
+  $('w-goal').value = ''; save(); renderWork();
+});
+$('w-goal').addEventListener('keydown', e => { if (e.key === 'Enter') $('w-goal-add').click(); });
+$('w-goals').addEventListener('click', e => {
+  const del = e.target.dataset.delGoal;
+  if (del) { db.goals = db.goals.filter(g => g.id !== del); save(); renderWork(); }
+});
+$('w-goals').addEventListener('change', e => {
+  const id = e.target.dataset.goal; if (!id) return;
+  const g = db.goals.find(x => x.id === id);
+  g.done = e.target.checked; g.doneOn = g.done ? today() : null; save(); renderWork();
+});
+
+$('w-add').addEventListener('click', () => {
+  const entry = { date: $('w-date').value || today(), done: $('w-done').value.trim(),
+    learned: $('w-learned').value.trim(), blockers: $('w-blockers').value.trim() };
+  if (!entry.done && !entry.learned && !entry.blockers) return toast('Γράψε κάτι πρώτα', true);
+  // Μία καταχώρηση ανά μέρα — αν υπάρχει, την αντικαθιστά
+  const i = db.logs.findIndex(l => l.date === entry.date);
+  if (i >= 0) db.logs[i] = { ...db.logs[i], ...entry }; else db.logs.push({ id: uid(), ...entry });
+  ['w-done', 'w-learned', 'w-blockers'].forEach(id => $(id).value = '');
+  save(); renderWork(); toast('Αποθηκεύτηκε ✓');
+});
+// Αλλαγή ημερομηνίας → φορτώνει την υπάρχουσα καταχώρηση για επεξεργασία
+$('w-date').addEventListener('change', () => {
+  const l = db.logs.find(x => x.date === $('w-date').value);
+  $('w-done').value = l ? l.done : ''; $('w-learned').value = l ? l.learned : ''; $('w-blockers').value = l ? l.blockers : '';
+});
+$('w-logs').addEventListener('click', e => {
+  const del = e.target.dataset.delLog;
+  if (del && confirm('Διαγραφή καταχώρησης;')) { db.logs = db.logs.filter(l => l.id !== del); save(); renderWork(); }
+});
+
+function renderWork() {
+  const goals = [...db.goals].sort((a, b) => a.done - b.done);
+  $('w-goals').innerHTML = goals.length ? goals.map(g => `
+    <li><label class="goal ${g.done ? 'done' : ''}" style="margin:0;color:inherit;font-size:15px">
+      <input type="checkbox" data-goal="${g.id}" ${g.done ? 'checked' : ''}><span>${esc(g.text)}</span></label>
+      <button class="small" data-del-goal="${g.id}">✕</button></li>`).join('')
+    : '<li class="empty">Πρόσθεσε τον πρώτο σου στόχο.</li>';
+
+  const logs = [...db.logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+  $('w-logs').innerHTML = logs.length ? logs.map(l => `
+    <div class="log-entry">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>${fmtDate(l.date)}</strong><button class="small" data-del-log="${l.id}">✕</button></div>
+      ${l.done ? `<p><b>Έκανα:</b> ${esc(l.done)}</p>` : ''}
+      ${l.learned ? `<p><b>Έμαθα:</b> ${esc(l.learned)}</p>` : ''}
+      ${l.blockers ? `<p><b>Μπλόκο:</b> ${esc(l.blockers)}</p>` : ''}
+    </div>`).join('') : '<p class="empty">Καμία καταχώρηση ακόμα.</p>';
+}
+
+/* ===================== ΡΥΘΜΙΣΕΙΣ / BACKUP ===================== */
+$('s-export').addEventListener('click', async () => {
+  const name = `progress-backup-${today()}.json`;
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const file = new File([blob], name, { type: 'application/json' });
+  // Στο κινητό ανοίγει το μενού κοινοποίησης (Drive, email, Αρχεία)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); localStorage.setItem(KEY + '-lastExport', today()); renderStatus(); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  localStorage.setItem(KEY + '-lastExport', today()); renderStatus();
+});
+$('s-import').addEventListener('click', () => $('s-file').click());
+$('s-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data.gym) || !Array.isArray(data.logs)) throw new Error();
+    if (!confirm('Θα αντικατασταθούν τα τωρινά δεδομένα. Συνέχεια;')) return;
+    db = Object.assign(empty(), data); save(); renderAll(); toast('Έγινε import ✓');
+  } catch (err) { toast('Μη έγκυρο αρχείο', true); }
+  e.target.value = '';
+});
+$('s-reset').addEventListener('click', () => {
+  if (!confirm('Σίγουρα; Όλα τα δεδομένα θα χαθούν.')) return;
+  if (!confirm('Τελευταία ευκαιρία — έχεις κάνει export;')) return;
+  db = empty(); save(); renderAll();
+});
+function renderStatus() {
+  const last = localStorage.getItem(KEY + '-lastExport');
+  $('s-status').innerHTML = `Σετ γυμναστηρίου: ${db.gym.length}<br>Καταχωρήσεις δουλειάς: ${db.logs.length}<br>Στόχοι: ${db.goals.length}<br>
+    Τελευταίο export: ${last ? fmtDate(last) : '<span style="color:var(--danger)">ποτέ</span>'}`;
+}
+
+function renderAll() { renderGym(); renderWork(); renderStatus(); }
+renderAll();
+
+/* ===================== OFFLINE (service worker) ===================== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
